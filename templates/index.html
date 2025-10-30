@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.socket.io/4.5.2/socket.io.min.js"></script>
+    <title>Rock Paper Scissors - Hand Gesture Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .floating-emoji {
+            position: absolute;
+            font-size: 3rem;
+            opacity: 0.1;
+            animation: float 15s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-100px) rotate(180deg); }
+        }
+
+        /* Name Input Screen */
+        .name-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.5s;
+        }
+
+        .name-container {
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 60px 80px;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .name-container h1 {
+            font-size: 3.5rem;
+            color: #fff;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+            animation: glow 2s infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #fff, 0 0 30px #fff, 0 0 40px #667eea; }
+            to { text-shadow: 0 0 30px #fff, 0 0 40px #764ba2, 0 0 50px #764ba2; }
+        }
+
+        .name-container p {
+            font-size: 1.3rem;
+            color: #ffd700;
+            margin-bottom: 40px;
+            font-weight: 600;
+        }
+
+        .name-input-box {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .name-input-box input {
+            width: 400px;
+            padding: 20px;
+            font-size: 1.5rem;
+            border: 3px solid #ffd700;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .name-input-box input:focus {
+            outline: none;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        }
+
+        .start-btn {
+            padding: 18px 60px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(245, 87, 108, 0.6);
+        }
+
+        .start-btn:active {
+            transform: translateY(0);
+        }
+
+        .instructions {
+            margin-top: 30px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 30px;
+            border-radius: 15px;
+            color: #fff;
+        }
+
+        .instructions h3 {
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        .instructions li {
+            margin: 10px 0;
+            font-size: 1.1rem;
+            list-style: none;
+        }
+
+        /* Game Container */
+        .game-container {
+            position: relative;
+            z-index: 1;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        /* Scoreboard */
+        .scoreboard {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+            padding: 25px 40px;
+            border-radius: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 800px;
+            margin: 0 auto 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        .score-item {
+            text-align: center;
+            flex: 1;
+        }
+
+        .score-item h3 {
+            font-size: 1.3rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .score-item .score {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #764ba2;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .vs-text {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f5576c;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .round-indicator {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #555;
+            font-weight: 600;
+        }
+
+        /* Battle Arena */
+        .battle-arena {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .player-side, .computer-side {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        .player-side::before, .computer-side::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .side-header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            color: #fff;
+        }
+
+        .side-header h2 {
+            font-size: 2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .gesture-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .gesture-emoji {
+            font-size: 12rem;
+            margin: 20px 0;
+            animation: bounce 1s infinite;
+            filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .gesture-label {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #764ba2;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .waiting-text {
+            font-size: 2rem;
+            color: #999;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .webcam-container {
+            width: 100%;
+            height: 400px;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .instruction-text {
+            text-align: center;
+            font-size: 1.3rem;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        /* Countdown Timer Overlay */
+        .countdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2500;
+            animation: fadeIn 0.3s;
+        }
+
+        .countdown-number {
+            font-size: 15rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.8),
+                         0 0 80px rgba(102, 126, 234, 0.8);
+            animation: countdownPulse 1s ease-in-out;
+        }
+
+        @keyframes countdownPulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .countdown-text {
+            font-size: 2.5rem;
+            color: #ffd700;
+            margin-top: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .countdown-instruction {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* Round Popup */
+        .round-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 60px 100px;
+            border-radius: 30px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .round-popup.show {
+            animation: popIn 0.5s forwards;
+        }
+
+        @keyframes popIn {
+            to {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .round-popup h2 {
+            font-size: 4rem;
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .round-popup.hide {
+            animation: popOut 0.5s forwards;
+        }
+
+        @keyframes popOut {
+            to {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Result Modal */
+        .result-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            animation: fadeIn 0.4s;
+        }
+
+        .result-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 60px 80px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .result-content h2 {
+            font-size: 4rem;
+            color: #ffd700;
+            margin-bottom: 30px;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .result-choices {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 40px 0;
+        }
+
+        .choice-box {
+            text-align: center;
+        }
+
+        .choice-box .emoji {
+            font-size: 6rem;
+            margin-bottom: 15px;
+        }
+
+        .choice-box p {
+            font-size: 1.5rem;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .result-btn {
+            padding: 18px 50px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            background: #fff;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .result-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Game Over Screen */
+        .game-over-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 4000;
+            animation: fadeIn 0.5s;
+        }
+
+        .game-over-content {
+            text-align: center;
+            color: #fff;
+            animation: scaleIn 0.6s ease-out;
+        }
+
+        .game-over-content h1 {
+            font-size: 5rem;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glow 2s infinite alternate;
+        }
+
+        .final-score-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px 60px;
+            border-radius: 25px;
+            margin: 40px 0;
+            border: 3px solid #ffd700;
+        }
+
+        .final-score-box h3 {
+            font-size: 2rem;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .final-score-box p {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+
+        .game-over-btns {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .play-again-btn, .quit-btn {
+            padding: 20px 50px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .play-again-btn {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #333;
+        }
+
+        .quit-btn {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333;
+        }
+
+        .play-again-btn:hover, .quit-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Confetti Animation */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: absolute;
+            animation: confetti-fall 3s linear;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bgAnimation"></div>
+
+    <!-- Name Input Screen -->
+    <div class="name-screen" id="nameScreen">
+        <div class="name-container">
+            <h1>✊✋✌️ ROCK PAPER SCISSORS</h1>
+            <p>🎮 Ultimate Hand Gesture Battle</p>
+            <div class="name-input-box">
+                <input type="text" id="playerName" placeholder="Enter Your Name" maxlength="15" autofocus>
+            </div>
+            <button class="start-btn" onclick="startGame()">START GAME 🚀</button>
+            <div class="instructions">
+                <h3>📋 How to Play:</h3>
+                <ul>
+                    <li>✊ <strong>Rock:</strong> Make a fist (0 fingers)</li>
+                    <li>✋ <strong>Paper:</strong> Open hand (5 fingers)</li>
+                    <li>✌️ <strong>Scissors:</strong> Show 2 fingers</li>
+                    <li>⏱️ <strong>Get ready during countdown!</strong></li>
+                    <li>🏆 <strong>Best of 3 rounds wins!</strong></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Container -->
+    <div class="game-container hidden" id="gameContainer">
+        <!-- Scoreboard -->
+        <div class="scoreboard">
+            <div class="score-item">
+                <h3 id="playerNameDisplay">Player</h3>
+                <div class="score" id="playerScore">0</div>
+            </div>
+            <div style="text-align: center;">
+                <div class="vs-text">VS</div>
+                <div class="round-indicator" id="roundIndicator">Round 1/3</div>
+            </div>
+            <div class="score-item">
+                <h3>Computer</h3>
+                <div class="score" id="computerScore">0</div>
+            </div>
+        </div>
+
+        <!-- Battle Arena -->
+        <div class="battle-arena">
+            <!-- Computer Side -->
+            <div class="computer-side">
+                <div class="side-header">
+                    <h2>🤖 COMPUTER</h2>
+                </div>
+                <div class="gesture-display">
+                    <div id="computerGesture" class="waiting-text">Get Ready...</div>
+                </div>
+            </div>
+
+            <!-- Player Side -->
+            <div class="player-side">
+                <div class="side-header">
+                    <h2 id="playerSideHeader">👤 PLAYER</h2>
+                </div>
+                <div class="gesture-display">
+                    <div class="webcam-container">
+                        <video id="webcam" autoplay playsinline></video>
+                    </div>
+                    <p class="instruction-text" id="instructionText">👆 Get ready to show your gesture!</p>
+                    <div id="playerGesture" class="gesture-label"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Countdown Overlay -->
+    <div class="countdown-overlay hidden" id="countdownOverlay">
+        <div class="countdown-number" id="countdownNumber">3</div>
+        <div class="countdown-text">Get Ready!</div>
+        <div class="countdown-instruction">Show your gesture now!</div>
+    </div>
+
+    <!-- Round Popup -->
+    <div class="round-popup hidden" id="roundPopup">
+        <h2 id="roundPopupText">Round 2 Starting...</h2>
+    </div>
+
+    <!-- Result Modal -->
+    <div class="result-modal hidden" id="resultModal">
+        <div class="result-content">
+            <h2 id="resultText">🎉 YOU WIN! 🎉</h2>
+            <div class="result-choices">
+                <div class="choice-box">
+                    <div class="emoji" id="resultPlayerEmoji">✊</div>
+                    <p id="resultPlayerChoice">Rock</p>
+                </div>
+                <div class="choice-box">
+                    <div class="emoji" id="resultComputerEmoji">✌️</div>
+                    <p id="resultComputerChoice">Scissors</p>
+                </div>
+            </div>
+            <button class="result-btn" onclick="nextRound()">NEXT ROUND ➡️</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div class="game-over-screen hidden" id="gameOverScreen">
+        <div class="game-over-content">
+            <h1 id="gameOverTitle">🏆 YOU WIN! 🏆</h1>
+            <div class="final-score-box">
+                <h3>FINAL SCORE</h3>
+                <p id="finalScore">3 - 1</p>
+            </div>
+            <div class="game-over-btns">
+                <button class="play-again-btn" onclick="playAgain()">🔄 PLAY AGAIN</button>
+                <button class="quit-btn" onclick="quitGame()">❌ QUIT</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Game State
+    const socket = io();
+
+    let playerName = '';
+    let playerScore = 0;
+    let computerScore = 0;
+    let currentRound = 1;
+    let maxRounds = 3;
+    let playerChoice = '';
+    let computerChoice = '';
+    let isPlaying = false;
+    let isCountingDown = false;
+    let countdownInterval = null;
+
+    const choices = ['Rock', 'Paper', 'Scissors'];
+    const emojis = {
+        'Rock': '✊',
+        'Paper': '✋',
+        'Scissors': '✌️',
+        'Invalid': '❓',
+        'Nothing': '...'
+    };
+
+    // Initialize background animation
+    function initBackground() {
+        const bgAnimation = document.getElementById('bgAnimation');
+        const bgEmojis = ['✊', '✋', '✌️', '🎮', '🏆', '⭐', '💫', '🎯'];
+        
+        for (let i = 0; i < 20; i++) {
+            const emoji = document.createElement('div');
+            emoji.className = 'floating-emoji';
+            emoji.textContent = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
+            emoji.style.left = `${Math.random() * 100}%`;
+            emoji.style.top = `${Math.random() * 100}%`;
+            emoji.style.animationDelay = `${Math.random() * 5}s`;
+            emoji.style.animationDuration = `${10 + Math.random() * 10}s`;
+            bgAnimation.appendChild(emoji);
+        }
+    }
+
+    // Start Game
+    function startGame() {
+        const nameInput = document.getElementById('playerName');
+        playerName = nameInput.value.trim();
+        
+        if (!playerName) {
+            alert('Please enter your name!');
+            return;
+        }
+
+        document.getElementById('nameScreen').classList.add('hidden');
+        document.getElementById('gameContainer').classList.remove('hidden');
+        document.getElementById('playerNameDisplay').textContent = playerName;
+        document.getElementById('playerSideHeader').textContent = `👤 ${playerName.toUpperCase()}`;
+        
+        initWebcam();
+        
+        // Start countdown after a brief delay
+        setTimeout(() => {
+            startCountdown();
+        }, 2000);
+    }
+
+    function initWebcam() {
+        const video = document.getElementById('webcam');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                video.addEventListener('loadeddata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+
+                    setInterval(() => {
+                        if (isPlaying || isCountingDown) {
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const data = canvas.toDataURL('image/jpeg', 0.8);
+                            socket.emit('frame', data);
+                        }
+                    }, 200);
+                });
+            })
+            .catch(err => {
+                console.error("Error accessing webcam: ", err);
+                alert("Could not access webcam. Please allow camera access and refresh.");
+            });
+    }
+
+    // Listen for gesture detection
+    socket.on('gesture_response', (data) => {
+        if (isCountingDown && data.gesture && data.gesture !== 'Nothing') {
+            playerChoice = data.gesture;
+            document.getElementById('playerGesture').textContent = data.gesture;
+        }
+    });
+
+    // Start Countdown Timer
+    function startCountdown() {
+        isCountingDown = true;
+        isPlaying = false;
+        let countdown = 3;
+        
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        const countdownNumber = document.getElementById('countdownNumber');
+        
+        countdownOverlay.classList.remove('hidden');
+        playerChoice = '';
+        document.getElementById('playerGesture').textContent = '';
+        document.getElementById('computerGesture').innerHTML = '<div class="waiting-text">Get Ready...</div>';
+        document.getElementById('instructionText').textContent = '👆 Show your gesture NOW!';
+        
+        countdownInterval = setInterval(() => {
+            countdownNumber.textContent = countdown;
+            countdownNumber.style.animation = 'none';
+            setTimeout(() => {
+                countdownNumber.style.animation = 'countdownPulse 1s ease-in-out';
+            }, 10);
+            
+            countdown--;
+            
+            if (countdown < 0) {
+                clearInterval(countdownInterval);
+                countdownOverlay.classList.add('hidden');
+                isCountingDown = false;
+                revealChoices();
+            }
+        }, 1000);
+    }
+
+    // Reveal Both Choices
+    function revealChoices() {
+        // Get final player gesture
+        if (!playerChoice || playerChoice === 'Nothing' || playerChoice === 'Invalid') {
+            playerChoice = 'Rock'; // Default if no valid gesture detected
+        }
+        
+        // Computer makes random choice
+        computerChoice = choices[Math.floor(Math.random() * choices.length)];
+        
+        // Show both gestures
+        const computerGestureDiv = document.getElementById('computerGesture');
+        computerGestureDiv.innerHTML = `
+            <div class="gesture-emoji">${emojis[computerChoice]}</div>
+            <div class="gesture-label">${computerChoice}</div>
+        `;
+        
+        document.getElementById('playerGesture').textContent = playerChoice;
+        document.getElementById('instructionText').textContent = `You chose: ${playerChoice}`;
+        
+        // Show result after brief delay
+        setTimeout(() => {
+            const result = determineWinner(playerChoice, computerChoice);
+            showResult(result);
+        }, 2000);
+    }
+
+    // Determine Winner
+    function determineWinner(player, computer) {
+        if (player === computer) return 'tie';
+        
+        if ((player === 'Rock' && computer === 'Scissors') ||
+            (player === 'Paper' && computer === 'Rock') ||
+            (player === 'Scissors' && computer === 'Paper')) {
+            return 'player';
+        }
+        
+        return 'computer';
+    }
+
+    // Show Result
+    function showResult(result) {
+        const resultModal = document.getElementById('resultModal');
+        const resultText = document.getElementById('resultText');
+        
+        // Update scores
+        if (result === 'player') {
+            playerScore++;
+            resultText.textContent = '🎉 YOU WIN THIS ROUND! 🎉';
+            resultText.style.color = '#4ade80';
+            createConfetti();
+        } else if (result === 'computer') {
+            computerScore++;
+            resultText.textContent = '💻 COMPUTER WINS THIS ROUND! 💻';
+            resultText.style.color = '#f87171';
+        } else {
+            resultText.textContent = '🤝 IT\'S A TIE! 🤝';
+            resultText.style.color = '#fbbf24';
+        }
+        
+        // Update score display
+        document.getElementById('playerScore').textContent = playerScore;
+        document.getElementById('computerScore').textContent = computerScore;
+        
+        // Show choices in modal
+        document.getElementById('resultPlayerEmoji').textContent = emojis[playerChoice];
+        document.getElementById('resultPlayerChoice').textContent = playerChoice;
+        document.getElementById('resultComputerEmoji').textContent = emojis[computerChoice];
+        document.getElementById('resultComputerChoice').textContent = computerChoice;
+        
+        resultModal.classList.remove('hidden');
+    }
+
+    // Next Round
+    function nextRound() {
+        document.getElementById('resultModal').classList.add('hidden');
+        
+        // Check if game is over
+        if (playerScore >= 2 || computerScore >= 2) {
+            endGame();
+            return;
+        }
+        
+        currentRound++;
+        document.getElementById('roundIndicator').textContent = `Round ${currentRound}/${maxRounds}`;
+        
+        // Show round popup
+        const roundPopup = document.getElementById('roundPopup');
+        document.getElementById('roundPopupText').textContent = `Round ${currentRound} Starting...`;
+        roundPopup.classList.remove('hidden');
+        roundPopup.classList.add('show');
+        
+        setTimeout(() => {
+            roundPopup.classList.add('hide');
+            setTimeout(() => {
+                roundPopup.classList.add('hidden');
+                roundPopup.classList.remove('hide', 'show');
+                
+                // Reset and start countdown for next round
+                playerChoice = '';
+                computerChoice = '';
+                document.getElementById('playerGesture').textContent = '';
+                document.getElementById('computerGesture').innerHTML = '<div class="waiting-text">Get Ready...</div>';
+                document.getElementById('instructionText').textContent = '👆 Get ready to show your gesture!';
+                
+                setTimeout(() => {
+                    startCountdown();
+                }, 1000);
+            }, 500);
+        }, 2000);
+    }
+
+    // End Game
+    function endGame() {
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const finalScore = document.getElementById('finalScore');
+        
+        if (playerScore > computerScore) {
+            gameOverTitle.innerHTML = `🏆 ${playerName.toUpperCase()} WINS! 🏆`;
+            createConfetti(100);
+        } else {
+            gameOverTitle.innerHTML = '💻 COMPUTER WINS! 💻';
+        }
+        
+        finalScore.textContent = `${playerName}: ${playerScore}  -  Computer: ${computerScore}`;
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    // Play Again
+    function playAgain() {
+        // Reset game state
+        playerScore = 0;
+        computerScore = 0;
+        currentRound = 1;
+        playerChoice = '';
+        computerChoice = '';
+        
+        // Reset UI
+        document.getElementById('playerScore').textContent = '0';
+        document.getElementById('computerScore').textContent = '0';
+        document.getElementById('roundIndicator').textContent = 'Round 1/3';
+        document.getElementById('playerGesture').textContent = '';
+        document.getElementById('computerGesture').innerHTML = '<div class="waiting-text">Get Ready...</div>';
+        document.getElementById('instructionText').textContent = '👆 Get ready to show your gesture!';
+        
+        // Hide game over screen
+        document.getElementById('gameOverScreen').classList.add('hidden');
+        
+        // Start countdown
+        setTimeout(() => {
+            startCountdown();
+        }, 1000);
+    }
+
+    // Quit Game
+    function quitGame() {
+        window.location.reload();
+    }
+    
+    // Create Confetti
+    function createConfetti(count = 50) {
+        const colors = ['#f093fb', '#f5576c', '#ffd700', '#84fab0', '#8fd3f4'];
+        for (let i = 0; i < count; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.top = `${-20 + Math.random() * -100}px`;
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                confetti.style.animationDelay = `${Math.random() * 0.5}s`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }, i * 30);
+        }
+    }
+
+    // Initialize on load
+    window.onload = () => {
+        initBackground();
+    };
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            if (!document.getElementById('nameScreen').classList.contains('hidden')) {
+                startGame();
+            }
+        }
+    });
+</script>
+</body>
+</html>
