@@ -14,7 +14,7 @@ class RockPaperScissorsGame:
         self.mp_drawing_styles = mp.solutions.drawing_styles
         self.mp_hands = mp.solutions.hands
         
-        # Initialize hands detector (reusable instance)
+    
         self.hands = self.mp_hands.Hands(
             model_complexity=0,
             min_detection_confidence=0.5,
@@ -77,12 +77,7 @@ class RockPaperScissorsGame:
         return count
     
     def process_frame_for_gesture(self, frame):
-        """
-        Process a single frame to detect hand gesture.
-        This method is called from the Flask app for real-time detection.
-        Returns the detected gesture as a string.
-        """
-        # Process the frame
+     
         frame.flags.writeable = False
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.hands.process(frame_rgb)
@@ -99,23 +94,23 @@ class RockPaperScissorsGame:
             # Get hand landmarks
             handNumber = 0
             for hand in results.multi_hand_landmarks:
-                # Determine if it's left or right hand
+                
                 if results.multi_handedness:
                     label = results.multi_handedness[handNumber].classification[0].label
                 else:
-                    label = "Right"  # Default
+                    label = "Right" 
+        
                 
-                # Convert landmarks to pixel coordinates
                 imgH, imgW, imgC = frame.shape
                 for id, landmark in enumerate(hand.landmark):
                     xPos, yPos = int(landmark.x * imgW), int(landmark.y * imgH)
                     hand_landmarks.append([id, xPos, yPos, label])
                 
-                # Count fingers using YOUR original logic
+                
                 count = self.compute_fingers(hand_landmarks, count)
                 handNumber += 1
         
-        # Determine player choice based on finger count
+        
         if isCounting and count <= 5:
             player_choice = self.display_values[count]
         elif isCounting:
@@ -123,14 +118,14 @@ class RockPaperScissorsGame:
         else:
             player_choice = "Nothing"
         
-        # Add to deque for stability (YOUR original stability system)
+    
         self.de.appendleft(player_choice)
         
-        # Use mode for stable detection
+    
         try:
             player_choice = st.mode(self.de)
         except st.StatisticsError:
-            # If no mode can be determined, use the most recent choice
+            
             player_choice = self.de[0] if self.de else "Nothing"
         
         return player_choice
